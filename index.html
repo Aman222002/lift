@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script
+      src="https://kit.fontawesome.com/c4831453c7.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://code.jquery.com/jquery-3.7.1.min.js"
+      integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+      crossorigin="anonymous"
+    ></script>
+    <title>Lift Design</title>
+
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+        font-family: Arial, sans-serif;
+      }
+
+      .building {
+        width: 200px;
+        height: 400px;
+        margin-top: 30px;
+      }
+
+      .lift {
+        width: 200px;
+        height: 300px;
+        background-color: #131314;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        transition: bottom 0.5s ease-in-out;
+      }
+
+      .door-left,
+      .door-right {
+        width: 49.5%;
+        height: 100%;
+        background-color: grey;
+        position: absolute;
+        top: 0;
+        transition: transform 0.5s ease-in-out;
+      }
+
+      .door-left {
+        left: 0;
+      }
+
+      .door-right {
+        right: 0;
+      }
+
+      .door-open .door-left {
+        transform: translateX(-100%);
+      }
+
+      .door-open .door-right {
+        transform: translateX(100%);
+      }
+
+      .active {
+        background-color: rgb(224, 48, 48);
+      }
+
+      .floor-indicator {
+        position: absolute;
+        top: 80px;
+        left: 42%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: #f71717;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-size: 18px;
+        font-weight: bold;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="lift-simulator">
+      <div class="building">
+        <div class="lift">
+          <div class="door-left"></div>
+          <div class="door-right"></div>
+        </div>
+      </div>
+      <span class="floor-indicator">At: G</span>
+      <div class="controls">
+        <button class="direction-btn" id="up-btn"  style="background-color: #131314; color: #f0f0f0;">
+          <i class="fas fa-arrow-up"></i>
+        </button>
+        <button class="direction-btn" id="down-btn" style="background-color: #131314;color: #f0f0f0;">
+          <i class="fas fa-arrow-down"></i>
+        </button>
+        <div class="floors">
+          
+          <button class="floor-btn" data-floor="5">5</button>
+          <button class="floor-btn" data-floor="4">4</button>
+          <button class="floor-btn" data-floor="3">3</button>
+          <button class="floor-btn" data-floor="2">2</button>
+          <button class="floor-btn" data-floor="1">1</button>
+          <button class="floor-btn active" data-floor="0">G</button>
+       
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var requestedFloors = [];
+      var isMoving = false;
+      var currentFloor = "0";
+      var destination = null;
+
+      function openDoors(target) {
+        if ($(".lift").hasClass("door-open") || currentFloor == target) {
+          // return;
+        }
+        $(".lift").addClass("door-open");
+        $(".floor-indicator").text("At: " + target == "0" ? "G" : target);
+        setTimeout(function () {
+          $(".lift").removeClass("door-open");
+          console.log("Reached Floor:", target == "0" ? "G" : target);
+          $(".floor-btn").removeClass("active");
+          moveToNextFloor();
+        }, 3000);
+      }
+      const sleep = function (duration) {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(true), duration * 1000);
+        });
+      };
+      function moveLift(target) {
+        isMoving = true;
+        var direction = target > currentFloor ? "Moving Up" : "Moving Down";
+        $(".floor-indicator").text(`Reached: ${target == "0" ? "G" : target} (${direction})`);                                       
+        currentFloor = target;
+        isMoving = false;
+        requestedFloors.sort();
+        console.log(
+          "current",
+          currentFloor,
+          "target",
+          target,
+          "destination",
+          destination
+        );
+        if (currentFloor == destination) {
+          console.log("inside open");
+          openDoors(destination);
+        } else {
+          moveToNextFloor();
+        }
+      }
+      async function moveToNextFloor() {
+        if (requestedFloors.length > 0 && !isMoving) {
+          var nextFloor = requestedFloors.shift();
+          if (nextFloor > currentFloor) {
+            for (var i = currentFloor + 1; i <= nextFloor; i++) {
+              await sleep(3);
+              moveLift(i);
+            }
+          } else if (nextFloor < currentFloor) {
+            for (var i = currentFloor - 1; i >= nextFloor; i--) {
+              await sleep(3);
+              moveLift(i);
+            }
+          }
+          openDoors(nextFloor);
+          requestedFloors.shift();
+          isMoving = false;
+          moveToNextFloor();
+        }
+      }
+      $(document).ready(function () {
+        $(".floor-btn").on("click", function () {
+          var selectedFloor = $(this).data("floor");
+          //if (selectedFloor == "0" || selectedFloor % 2 == 0) {
+          $(this).addClass("active").siblings().removeClass("active");
+          destination = selectedFloor;
+          requestedFloors.push(destination);
+          console.log("Requested Floors:", requestedFloors);
+
+          if (!isMoving) {
+            moveToNextFloor();
+          }
+          if (destination > currentFloor) {
+            $("#up-btn").addClass("active");
+            $("#down-btn").removeClass("active");
+          } else if (destination < currentFloor) {
+            $("#down-btn").addClass("active");
+            $("#up-btn").removeClass("active");
+          } else {
+            $("#up-btn").removeClass("active");
+            $("#down-btn").removeClass("active");
+          }
+          // } else {
+          //   $(this).prop("disabled", true).addClass("disabled-floor");
+          //   $(".floor-indicator").text("only stop at even floors");
+          // }
+        });
+      });
+    </script>
+  </body>
+</html>
